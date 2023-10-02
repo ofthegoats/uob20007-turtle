@@ -1,3 +1,5 @@
+{-# LANGUAGE ViewPatterns #-}
+
 module Parser where
 
 import qualified Data.Char as Char
@@ -76,17 +78,29 @@ parseArg s0 =
 --        parseCmd "right(90)" = (Rt 90, [])
 -- 
 parseCmd :: String -> (Command, String)
-parseCmd ('u':'p':s) = (Up, s)
---   Fill in the other cases here
-parseCmd _ = 
-  error "Parse error: expected a command."
+parseCmd (List.stripPrefix "up" -> Just s) = (Up, s)
+parseCmd (List.stripPrefix "down" -> Just s) = (Dn, s)
+parseCmd (List.stripPrefix "right" -> Just x) =
+  let (arg, s) = parseArg x
+  in (Rt arg, s)
+parseCmd (List.stripPrefix "left" -> Just x) =
+  let (arg, s) = parseArg x
+  in (Lt arg, s)
+parseCmd (List.stripPrefix "fd" -> Just x) =
+  let (arg, s) = parseArg x
+  in (Fd arg, s)
+parseCmd _ = error "Parse error: expected a command."
 
 -- If `s` is a valid Turtle program, `parseProg s` evaluates to 
 -- a pair `(p, [])` in which `p` is the AST of the program described by `s`.
 parseProg :: String -> Program
-parseProg s0 = undefined
+parseProg s =
+  let (cmd, s') = parseCmd s
+  in case s' of
+    "" -> Cmd cmd
+    ';':s'' -> cmd `Seq` parseProg s''
+    _ -> error "turtle syntax error"
 
 -- If `s` is a valid Turtle program, `parse s` evaluates to the AST of `s`.
 parse :: String -> Program
 parse s = parseProg (rmWhiteSpace s)
-  
