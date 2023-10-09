@@ -1,10 +1,9 @@
 module Interpreter where
 
-import Parser ( Command(..), Program(..), parse ) 
+import Parser (Command (..), Program (..), parse)
 
 -- The pen can either be up or down.
-data PenState = PenUp | PenDown
-  deriving (Eq, Show)
+data PenState = PenUp | PenDown deriving (Eq, Show)
 
 --
 -- The state `s` of the turtle at any moment in time consists of:
@@ -12,37 +11,36 @@ data PenState = PenUp | PenDown
 --   `pos s` : its current location on the canvas as a coordinate
 --   `ang s` : the direction it is currently facing in radians
 --
-data TurtleState =
-  State {
-    pen :: PenState,
-    pos :: (Int, Int),
-    ang :: Float
-  } deriving (Eq, Show)
+data TurtleState = State { pen :: PenState
+                         , pos :: (Int, Int)
+                         , ang :: Float
+                         }
+  deriving (Eq, Show)
 
--- The turtle initially starts with its pen up, located in the 
+-- The turtle initially starts with its pen up, located in the
 -- bottom left of the canvas facing due east.
 initialTurtleState :: TurtleState
-initialTurtleState = 
-  State { 
+initialTurtleState =
+  State {
     pen = PenUp,
     pos = (0,500),
     ang = 0.0
   }
 
--- When `d` is an angle expressed in degrees, 
+-- When `d` is an angle expressed in degrees,
 -- `degToRad d` evaluates to `d` expressed in radians.
 degToRad :: Int -> Float
 degToRad d = fromIntegral d * (pi/180)
 
--- `computeNewPosition r d (x,y)` evaluates to the position `(xNew,yNew)` 
--- that is reached after starting in position `(x,y)` whilst facing at 
--- an angle of `r` radians, and moving forward in a straight line for a 
+-- `computeNewPosition d r (x,y)` evaluates to the position `(xNew,yNew)`
+-- that is reached after starting in position `(x,y)` whilst facing at
+-- an angle of `r` radians, and moving forward in a straight line for a
 -- distance of `d` units.
 computeNewPosition :: Int -> Float -> (Int, Int) -> (Int, Int)
-computeNewPosition d r (x,y) = 
+computeNewPosition d r (x,y) =
   (x + round (fromIntegral d * cos r), y + round (fromIntegral (-d) * sin r))
 
--- 
+--
 -- `interpretCmd c s` evaluates to a new turtle state `t` that
 -- describes the penstate, position and angle of the turtle after
 -- executing the command `c` when started in state `s`.
@@ -52,7 +50,7 @@ computeNewPosition d r (x,y) =
 --
 --        interpretCmd (Lt 90) (State {pen=PenUp, pos=(0,500), ang=0})
 --          = State {pen=PenUp, pos=(10,500), ang=pi/2}
---  
+--
 --        interpretCmd (Fd 50) (State {pen=PenUp, pos=(0,500), ang=pi/2})
 --          = State {pen=PenUp, pos=(0,450), ang=pi/2}
 --
@@ -60,30 +58,35 @@ computeNewPosition d r (x,y) =
 --          = State {pen=PenDown, pos=(0,500), ang=pi/2}
 --
 interpretCmd :: Command -> TurtleState -> TurtleState
+interpretCmd (Fd x) s@State{ pos = pos, ang = ang } = s { pos = computeNewPosition x ang pos }
+interpretCmd (Lt deg) s@State{ ang = ang } = s { ang = ang + degToRad deg }
+interpretCmd (Rt deg) s@State{ ang = ang } = s { ang = ang - degToRad deg }
 interpretCmd Up s = s { pen = PenUp }
+interpretCmd Dn s = s { pen = PenDown }
 
 --
 -- `interpretProg p s` evaluates to a new turtle state describing
--- the penstate, position and angle of the turtle after executing 
+-- the penstate, position and angle of the turtle after executing
 -- the program `p` when starting in state `s`.
--- 
+--
 --   e.g. Supposing `s = State {pen=PenUp, pos=(0,500), ang=0}`:
---       
+--
 --        interpretProg (parse "fd(10)") s
---          = s { pos = (10,500) } 
---  
+--          = s { pos = (10,500) }
+--
 --        interpretProg (parse "fd(10); fd(20)") s
 --          = s { pos = (30,500) }
---      
+--
 --        interpretProg (parse "fd(10); left(90); fd(50)") s
 --          = s { pos = (10,450), ang = pi/2 }
 --
 interpretProg :: Program -> TurtleState -> TurtleState
-interpretProg = undefined
+interpretProg (Cmd cmd) = interpretCmd cmd
+interpretProg (Seq cmd p) = interpretProg p . interpretCmd cmd
 
 --
 -- If `s` is a valid Turt program then `interpret s` evaluates
--- to a turtle state `t` which is the state reached after 
+-- to a turtle state `t` which is the state reached after
 -- interpreting the program `parse s` starting from `initialTurtleState`.
 --
 interpret :: String -> TurtleState
